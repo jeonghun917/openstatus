@@ -1,0 +1,1448 @@
+{
+  "format": "readfirst/map@1",
+  "groups": [
+    {
+      "id": "agents",
+      "title": "Agent skills (codebase-design, grill-me, screenshot) that Claude Code loads through symlinks",
+      "files": [
+        ".agents/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "apps",
+      "title": "Index README for the apps folder",
+      "files": [
+        "apps/README.md"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "apps-checker",
+      "title": "Go probe fleet (~35 fly.io regions) that runs checks and writes results to Tinybird",
+      "files": [
+        "apps/checker/**"
+      ],
+      "checks": [
+        {
+          "run": "cd apps/checker && go test -timeout 30s -race -count=1 ./...",
+          "why": "the Go probe tests, as CI runs them (pnpm verify skips this app)"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Per-phase timings from httptrace (DNS, connect, TLS, TTFB, transfer) are a product surface; do not drop or rename fields. - apps/checker/AGENTS.md:18"
+        },
+        {
+          "text": "Assertions exist twice, apps/checker/pkg/assertions and packages/assertions, plus region codes; moving one side silently diverges what the probe checks from what the dashboard shows. - apps/checker/AGENTS.md:12"
+        },
+        {
+          "text": "pnpm verify does not cover this app; only go test in CI (go-tests.yml) does. - apps/checker/AGENTS.md:16"
+        }
+      ]
+    },
+    {
+      "id": "apps-dashboard",
+      "title": "Next.js workspace dashboard; serves the whole tRPC API on the Node runtime",
+      "files": [
+        "apps/dashboard/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/dashboard test",
+          "why": "the test suite of @openstatus/dashboard"
+        },
+        {
+          "run": "pnpm --filter @openstatus/dashboard run lint",
+          "why": "lint rules of @openstatus/dashboard"
+        }
+      ],
+      "risks": [
+        {
+          "text": "A use client file must not value-import @openstatus/db/src/schema (pulls Drizzle into the browser); import the sub-path or use import type. - apps/dashboard/AGENTS.md:33"
+        },
+        {
+          "text": "The whole tRPC surface runs on the Node runtime because routers pull Node-only SDKs; do not move it to Edge. - apps/dashboard/src/app/api/trpc/lambda/[trpc]/route.ts:9",
+          "files": [
+            "apps/dashboard/src/app/api/trpc/lambda/[trpc]/route.ts"
+          ]
+        },
+        {
+          "text": "NEXT_PUBLIC_ variables (e.g. NEXT_PUBLIC_SELF_HOST) are inlined at build, so changing one at runtime does nothing. - apps/dashboard/src/components/forms/components/telegram-connection-flow.tsx:41",
+          "files": [
+            "apps/dashboard/src/components/forms/components/telegram-connection-flow.tsx"
+          ]
+        },
+        {
+          "text": "Icons used by incident components must be exported from @openstatus/icons (Add, Linked, Report, Unlinked); a missing export broke the incident UI (history a9fbe33). - apps/dashboard/src/components/incidents/incident-communication.tsx:4",
+          "files": [
+            "apps/dashboard/src/components/incidents/incident-communication.tsx"
+          ]
+        },
+        {
+          "text": "mapTimingPhases must keep phases sorted by timestamp; unsorted phases show the timing waterfall out of order (history 6c06a3b). - apps/dashboard/src/data/metrics.client.ts:325",
+          "files": [
+            "apps/dashboard/src/data/metrics.client.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps-private-location",
+      "title": "Go agent customers run in their own network to probe from there and report to workflows",
+      "files": [
+        "apps/private-location/**"
+      ],
+      "checks": [
+        {
+          "run": "cd apps/private-location && go test -timeout 30s -race -count=1 ./...",
+          "why": "the Go agent tests, as CI runs them"
+        }
+      ],
+      "risks": [
+        {
+          "text": "The server IdleTimeout (2 minutes) must stay longer than the probes' 90 s idle keep-alive, or a probe posts on a closing connection and loses the result with unexpected EOF (history 39780ae). - apps/private-location/internal/server/server.go:82",
+          "files": [
+            "apps/private-location/internal/server/server.go"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps-railway-proxy",
+      "title": "Small Go reverse proxy that retries only dial failures",
+      "files": [
+        "apps/railway-proxy/**"
+      ],
+      "checks": [],
+      "risks": []
+    },
+    {
+      "id": "apps-screenshot-service",
+      "title": "Unused screenshot service kept for a future browser check",
+      "files": [
+        "apps/screenshot-service/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "apps-server",
+      "title": "Hono API server: public REST v1, ConnectRPC, MCP and Slack routes",
+      "files": [
+        "apps/server/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/server test",
+          "why": "the test suite of @openstatus/server"
+        }
+      ],
+      "risks": [
+        {
+          "text": "V1 still issues inline Drizzle queries, so only requireWriteScope() guards its writes, mapping GET/HEAD to read and everything else to write; a V1 route that mutates through GET bypasses it. - apps/server/src/routes/v1/index.ts:157",
+          "files": [
+            "apps/server/src/routes/v1/index.ts"
+          ]
+        },
+        {
+          "text": "MCP tools registered without registerScopedTool show up in tools/list for read-only API keys. - apps/server/src/routes/mcp/tools/register-scoped.ts:71",
+          "files": [
+            "apps/server/src/routes/mcp/tools/register-scoped.ts"
+          ]
+        },
+        {
+          "text": "Slack route config is resolved once (createSlackRoute(config)); reading env at request time forces tests to mutate shared process.env. - apps/server/AGENTS.md:25"
+        }
+      ]
+    },
+    {
+      "id": "apps-ssh-server",
+      "title": "Small Go SSH server with a banner",
+      "files": [
+        "apps/ssh-server/**"
+      ],
+      "checks": [],
+      "risks": []
+    },
+    {
+      "id": "apps-status-page",
+      "title": "Public multi-tenant Next.js status pages, some password-gated, plus the theme explorer",
+      "files": [
+        "apps/status-page/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/status-page test",
+          "why": "the test suite of @openstatus/status-page"
+        },
+        {
+          "run": "pnpm --filter @openstatus/status-page run lint",
+          "why": "lint rules of @openstatus/status-page"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Any new route, handler, feed or embed that renders page content must apply the same password gate as the HTML route; mirror api/markdown and api/status. - apps/status-page/AGENTS.md:7"
+        },
+        {
+          "text": "Responses negotiate on Accept at one URL, so every one sets Vary: Accept and a strong ETag; a gated page must not inherit a public cache TTL. - apps/status-page/src/proxy.ts:24",
+          "files": [
+            "apps/status-page/src/proxy.ts"
+          ]
+        },
+        {
+          "text": "Never log or report tRPC input (page passwords, subscriber tokens); sentryLoggerLink attaches the path only. - apps/status-page/src/lib/trpc/shared.ts:15",
+          "files": [
+            "apps/status-page/src/lib/trpc/shared.ts"
+          ]
+        },
+        {
+          "text": "Requests resolving to no page row must be rewritten to 404, or the theme explorer answers for unknown slugs and domains. - apps/status-page/AGENTS.md:57"
+        },
+        {
+          "text": "--radius is themed to 0 here; use the radius tokens, never rounded-[4px] or rounded-full on status markers. - apps/status-page/AGENTS.md:37"
+        }
+      ]
+    },
+    {
+      "id": "apps-web",
+      "title": "Marketing site, docs, blog, free tools, search and the Stripe webhook route",
+      "files": [
+        "apps/web/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/web test",
+          "why": "includes content-lint.test.ts on the MDX pages"
+        },
+        {
+          "run": "pnpm --filter @openstatus/web run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Files under src/app/.well-known are outside the tsconfig program: @/ aliases do not resolve and nothing is type-checked; use relative imports and request the route to check. - apps/web/AGENTS.md:5"
+        },
+        {
+          "text": "The Stripe webhook reads the raw body with req.text() and verifies it with constructEvent before parsing; parsing JSON first fails every signature. - apps/web/src/app/api/webhook/stripe/route.ts:10",
+          "files": [
+            "apps/web/src/app/api/webhook/stripe/route.ts"
+          ]
+        },
+        {
+          "text": "MDX pages must use registered tags, no raw className, a SrOnly next to every Demo and no competitor links; content-lint.test.ts enforces most of it. - apps/web/AGENTS.md:23"
+        },
+        {
+          "text": "Grid builds its border and column classes from literal per-cols maps so Tailwind can see them; add new variants as full literal strings (history b1492e4). - apps/web/src/content/mdx-components/grid.tsx:37",
+          "files": [
+            "apps/web/src/content/mdx-components/grid.tsx"
+          ]
+        },
+        {
+          "text": "NEXT_PUBLIC_ values in env.ts are inlined at build, so changing one needs a rebuild. - apps/web/src/env.ts:27",
+          "files": [
+            "apps/web/src/env.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "apps-workflows",
+      "title": "Node service for checker ingest, status transitions, incidents, alerting, outbox and crons",
+      "files": [
+        "apps/workflows/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/workflows check",
+          "why": "tsc, the only type gate for this app"
+        },
+        {
+          "run": "pnpm --filter @openstatus/workflows test",
+          "why": "checker, outbox and transition tests"
+        }
+      ],
+      "risks": [
+        {
+          "text": "The native/CJS externals are listed twice, in tsdown.config.ts and scripts/sidecar-package.mjs; a new native dependency must join both or the production image breaks. - apps/workflows/tsdown.config.ts:7",
+          "files": [
+            "apps/workflows/tsdown.config.ts"
+          ]
+        },
+        {
+          "text": "updateStatusPrivate runs its own incident open/resolve logic behind a shared Basic CRON_SECRET header, separate from the cloud path in transition.ts, and shares findOpenIncident/resolveIncident with it, so the two paths drift (history 0a69aaf). - apps/workflows/src/checker/private-location.ts:37",
+          "files": [
+            "apps/workflows/src/checker/private-location.ts"
+          ]
+        },
+        {
+          "text": "resolveIncident resolves ALL open incidents of a monitor in one bulk update, not one incident (history 0a69aaf). - apps/workflows/src/checker/incident-utils.ts:45",
+          "files": [
+            "apps/workflows/src/checker/incident-utils.ts"
+          ]
+        },
+        {
+          "text": "transition.ts writes status CAS, incident and outbox in one db.batch; splitting the writes loses or duplicates notifications. - apps/workflows/src/checker/transition.ts:299",
+          "files": [
+            "apps/workflows/src/checker/transition.ts"
+          ]
+        },
+        {
+          "text": "Tests must not assign process.env mid-test: tests in a file share it, so the value leaks; resolve config at module scope and pass it in. - apps/workflows/AGENTS.md:15"
+        }
+      ]
+    },
+    {
+      "id": "charts",
+      "title": "Helm chart for deploying openstatus",
+      "files": [
+        "charts/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "claude",
+      "title": "Claude Code settings, session-start hook and /ship command",
+      "files": [
+        ".claude/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": [
+        {
+          "text": "session-start.sh still says deno is needed although deno was removed from the repo; do not rely on it for toolchain facts. - .claude/hooks/session-start.sh:22",
+          "files": [
+            ".claude/hooks/session-start.sh"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "docs",
+      "title": "Frozen architecture decision records and docs",
+      "files": [
+        "docs/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm check:docs",
+          "why": "docs/ references still resolve"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "github",
+      "title": "CI, deploy, publish and migration workflows",
+      "files": [
+        ".github/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm verify",
+          "why": "format, lint, doc references and tsc, what CI's Check job runs"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "infra",
+      "title": "Infrastructure definition and lock",
+      "files": [
+        "infra/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-ai",
+      "title": "Shared AI helpers",
+      "files": [
+        "packages/ai/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/ai test",
+          "why": "the test suite of @openstatus/ai"
+        },
+        {
+          "run": "pnpm --filter @openstatus/ai run lint",
+          "why": "lint rules of @openstatus/ai"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-analytics",
+      "title": "Product analytics client",
+      "files": [
+        "packages/analytics/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-api",
+      "title": "tRPC routers, status-page access checks and Stripe webhook handlers",
+      "files": [
+        "packages/api/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/api test",
+          "why": "routers, page access, Stripe webhook; needs a local libSQL"
+        }
+      ],
+      "risks": [
+        {
+          "text": "The Stripe client is built with STRIPE_SECRET_KEY || \"sk_unset\" because the constructor throws on an empty key and this module loads at import time; removing the fallback crashes every importer on self-hosted installs (history b6d08d4). - packages/api/src/router/stripe/shared.ts:9",
+          "files": [
+            "packages/api/src/router/stripe/shared.ts"
+          ]
+        },
+        {
+          "text": "Stripe MRR is unit_amount * quantity in cents with null as 0; do not treat it as whole currency units. - packages/api/src/router/stripe/utils.ts:368",
+          "files": [
+            "packages/api/src/router/stripe/utils.ts"
+          ]
+        },
+        {
+          "text": "Stripe may redeliver or reorder webhooks: the handlers ignore stale cancel/resume events and key mails and notifications by event id; keep that when adding a handler. - packages/api/src/router/stripe/webhook.ts:391",
+          "files": [
+            "packages/api/src/router/stripe/webhook.ts"
+          ]
+        },
+        {
+          "text": "Status reports must be ordered by latest update through sortStatusReportsByLatestUpdate in get and getLight, and the query must load updates date desc then id desc, or the first update is not the latest (history 5dde460, 3fa4995). - packages/api/src/router/statusPage.ts:90",
+          "files": [
+            "packages/api/src/router/statusPage.ts"
+          ]
+        },
+        {
+          "text": "guardTRPCSource filters on a spoofable header and is not a security boundary; each procedure returning page content must call assertPageAccess itself. incident.ts mixes service verbs, Slack WebClient and effects, so keep it thin (history 1880802, be854f6, c6adf43). - packages/api/src/lib/page-access.ts:36",
+          "files": [
+            "packages/api/src/lib/page-access.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "packages-assertions",
+      "title": "TypeScript assertion types and serializing for monitor checks",
+      "files": [
+        "packages/assertions/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/assertions test",
+          "why": "the test suite of @openstatus/assertions"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Assertion evaluation also exists in Go at apps/checker/pkg/assertions; change both in one PR or the probe and the dashboard disagree. - apps/checker/AGENTS.md:12"
+        }
+      ]
+    },
+    {
+      "id": "packages-db",
+      "title": "Drizzle schema, migrations, seed and test factories for Turso (libSQL)",
+      "files": [
+        "packages/db/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/db test",
+          "why": "schema, factories, uptime weights"
+        },
+        {
+          "run": "pnpm --filter @openstatus/db check",
+          "why": "types"
+        }
+      ],
+      "risks": [
+        {
+          "text": "impactUptimeWeight (major 1, partial 0.5, degraded 0) is pinned by tests and has been changed and reverted before; status-page uptime numbers move with it, so ask a maintainer first. - packages/db/src/schema/page_components/constants.ts:21",
+          "files": [
+            "packages/db/src/schema/page_components/constants.ts"
+          ]
+        },
+        {
+          "text": "A new audit action needs an entry in the discriminated union in audit_logs/validation.ts and, for dashboard-visible entities, an entityKinds entry, or diffs show raw ids. - packages/services/AGENTS.md:42"
+        },
+        {
+          "text": "Tests must mint their own workspace with createTestWorkspace and scope cleanup to it; a shared seeded workspace or global table wipe breaks other suites sharing the libSQL. - AGENTS.md:46"
+        },
+        {
+          "text": "Turso has no EXPLAIN or ANALYZE; check query plans locally against openstatus-dev.db, in production only rows_read tells you. - packages/services/AGENTS.md:78"
+        }
+      ]
+    },
+    {
+      "id": "packages-emails",
+      "title": "Transactional email templates and client",
+      "files": [
+        "packages/emails/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/emails test",
+          "why": "the test suite of @openstatus/emails"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-error",
+      "title": "Shared error helpers",
+      "files": [
+        "packages/error/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-header-analysis",
+      "title": "HTTP header analysis, including the fly region list",
+      "files": [
+        "packages/header-analysis/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/header-analysis test",
+          "why": "the test suite of @openstatus/header-analysis"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-icons",
+      "title": "Shared icon set (nucleo-based)",
+      "files": [
+        "packages/icons/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/icons run lint",
+          "why": "lint rules of @openstatus/icons"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Nucleo icons use an 18px viewBox with size and strokeWidth defaults; a mismatched viewBox or export breaks incident icons (history a9fbe33). - packages/icons/src/nucleo/external-link.tsx:1",
+          "files": [
+            "packages/icons/src/nucleo/external-link.tsx"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "packages-importers",
+      "title": "Importers from other status-page and monitoring providers",
+      "files": [
+        "packages/importers/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/importers test",
+          "why": "the test suite of @openstatus/importers"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-locales",
+      "title": "Translation dictionaries",
+      "files": [
+        "packages/locales/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-notifications",
+      "title": "One folder per notification provider (slack, discord, pagerduty, sms, ...)",
+      "files": [
+        "packages/notifications/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/notifications test",
+          "why": "notification providers"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-proto",
+      "title": "Protobuf contracts with buf generation to TS, Go and OpenAPI",
+      "files": [
+        "packages/proto/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/proto buf:lint",
+          "why": "proto lint"
+        },
+        {
+          "run": "pnpm --filter @openstatus/proto check",
+          "why": "types"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Go output is generated into both apps/checker/proto and apps/private-location/proto; regenerate for both and never hand-edit gen output. Deployed customer agents run older versions, so change additively (inferred). - packages/proto/buf.gen.go.yaml:5",
+          "files": [
+            "packages/proto/buf.gen.go.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "packages-react",
+      "title": "Published React status widget package",
+      "files": [
+        "packages/react/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-regions",
+      "title": "Region code list used across apps",
+      "files": [
+        "packages/regions/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/regions check",
+          "why": "types"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Region codes are duplicated (for example packages/header-analysis/src/regions/fly.ts) and stored in DB rows; renaming one needs a data migration and every copy updated. - packages/regions/index.ts:1",
+          "files": [
+            "packages/regions/index.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "packages-services",
+      "title": "Workspace-scoped business verbs with audit log and scope checks",
+      "files": [
+        "packages/services/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/services test",
+          "why": "verbs, audit rows and scope rejection; needs a local libSQL"
+        },
+        {
+          "run": "pnpm --filter @openstatus/services check",
+          "why": "types"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Incident reminders claim each window once, with a 14-day TTL, before sending anything; changing the window maths or the claim key sends duplicate or missed Slack pings. - packages/services/src/incident/reminders.ts:166",
+          "files": [
+            "packages/services/src/incident/reminders.ts"
+          ]
+        },
+        {
+          "text": "incident/index.ts is a barrel whose effects (afterIncident*, notifyIncidentCommander) and allowedTransitions are used by Slack, dashboard and API callers alike; renaming or reshaping them breaks every transport at once (history 4f3d904, 25c93d9, 1880802). - packages/services/src/incident/index.ts:1",
+          "files": [
+            "packages/services/src/incident/index.ts"
+          ]
+        },
+        {
+          "text": "listIncidents runs count(*) only when the page is full; otherwise totalSize is offset + items.length, so pagination totals break if limit or offset handling changes (history 25c93d9, be854f6, 46d2a92). - packages/services/src/incident/list.ts:49",
+          "files": [
+            "packages/services/src/incident/list.ts"
+          ]
+        },
+        {
+          "text": "Timeline downtime events start at incident.startedAt, not createdAt or declaredAt; bar days are now computed in a time zone, so day-boundary logic is time-zone sensitive (history ec8489b). - packages/services/src/status-timeline/events.ts:322",
+          "files": [
+            "packages/services/src/status-timeline/events.ts"
+          ]
+        },
+        {
+          "text": "The checker ingest path writes monitor_status, incident and outbox directly and bypasses the verbs, so a change to incident schema or semantics must be mirrored in apps/workflows/src/checker/transition.ts; do not route it through a verb. - packages/services/AGENTS.md:8"
+        }
+      ]
+    },
+    {
+      "id": "packages-status-fetcher",
+      "title": "Fetchers for third-party status pages, with Effect retries",
+      "files": [
+        "packages/status-fetcher/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/status-fetcher test",
+          "why": "the test suite of @openstatus/status-fetcher"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-subscriptions",
+      "title": "Status-page subscriber logic",
+      "files": [
+        "packages/subscriptions/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/subscriptions test",
+          "why": "the test suite of @openstatus/subscriptions"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-test-utils",
+      "title": "Shared test helpers",
+      "files": [
+        "packages/test-utils/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-theme-store",
+      "title": "Status-page themes as OKLCH CSS variables",
+      "files": [
+        "packages/theme-store/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/theme-store test",
+          "why": "the test suite of @openstatus/theme-store"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-tinybird",
+      "title": "Tinybird datafiles for check time-series and a typed client",
+      "files": [
+        "packages/tinybird/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/tinybird test",
+          "why": "the test suite of @openstatus/tinybird"
+        }
+      ],
+      "risks": [
+        {
+          "text": "This is Tinybird Forward: deploy with tb deploy, no VERSION bumping; schema changes in place need FORWARD_QUERY when existing rows must be transformed. - packages/tinybird/README.md:19"
+        },
+        {
+          "text": "Tinybird and Turso are linked by id only (no join or transaction); external component rows are keyed by the Turso external_service_component.id as a string. - docs/adr/0007-store-external-service-components.md:58",
+          "files": [
+            "docs/adr/0007-store-external-service-components.md"
+          ]
+        },
+        {
+          "text": "Datafiles under datasources, endpoints and materializations must stay in step with the zod schemas in src (inferred). - packages/tinybird/src/client.ts:1",
+          "files": [
+            "packages/tinybird/src/client.ts"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "packages-tracker",
+      "title": "Browser tracker",
+      "files": [
+        "packages/tracker/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/tracker test",
+          "why": "the test suite of @openstatus/tracker"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-tsconfig",
+      "title": "Shared tsconfig bases",
+      "files": [
+        "packages/tsconfig/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-ui",
+      "title": "@openstatus/ui: shadcn primitives, the published blocks registry and custom components",
+      "files": [
+        "packages/ui/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/ui registry:build",
+          "why": "registry still builds from src"
+        },
+        {
+          "run": "pnpm --filter @openstatus/ui run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": [
+        {
+          "text": "Do not edit src/components/ui: the registry ships none of them, so a block relying on a local tweak works here and breaks for installers. - packages/ui/AGENTS.md:15"
+        },
+        {
+          "text": "A new blocks/ file needs a registry.json entry with registryDependencies, or it 404s for consumers and nothing in CI catches it; blocks may not import app code (next/link, db, tRPC). - packages/ui/AGENTS.md:39"
+        },
+        {
+          "text": "dist/ and public/r/ are generated by registry:build; fix src and rebuild, never edit them. - packages/ui/AGENTS.md:81"
+        }
+      ]
+    },
+    {
+      "id": "packages-upstash",
+      "title": "Upstash Redis wrapper",
+      "files": [
+        "packages/upstash/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/upstash test",
+          "why": "the test suite of @openstatus/upstash"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "packages-utils",
+      "title": "Shared small utilities",
+      "files": [
+        "packages/utils/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/utils test",
+          "why": "the test suite of @openstatus/utils"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "root",
+      "title": "Top-level config, toolchain pins, deployment compose files and contributor docs",
+      "files": [
+        ".dockerignore",
+        ".env.docker-lightweight.example",
+        ".env.docker.example",
+        ".gitignore",
+        ".koyebignore",
+        ".stacked.toml",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "CONTRIBUTING.md",
+        "COOLIFY_DEPLOYMENT.md",
+        "COOLIFY_ENVIRONMENT_GUIDE.md",
+        "COOLIFY_SETUP.md",
+        "DESIGN.md",
+        "DOCKER.md",
+        "LICENSE",
+        "README.md",
+        "SECURITY.md",
+        "bunfig.toml",
+        "config.openstatus.yaml",
+        "coolify-deployment.yaml",
+        "devbox.json",
+        "devbox.lock",
+        "docker-compose-lightweight.yaml",
+        "docker-compose.github-packages.yaml",
+        "docker-compose.yaml",
+        "knip.ts",
+        "oxfmt.config.ts",
+        "oxlint.config.ts",
+        "package.json",
+        "pnpm-lock.yaml",
+        "pnpm-workspace.yaml",
+        "process-compose.yaml",
+        "turbo.json"
+      ],
+      "checks": [
+        {
+          "run": "pnpm verify",
+          "why": "format, lint, doc references and tsc, what CI's Check job runs"
+        },
+        {
+          "run": "pnpm check:docs",
+          "why": "cited doc and AGENTS.md paths still exist"
+        }
+      ],
+      "risks": [
+        {
+          "text": "devbox.json and the CI workflows pin the same node (26.8.1); never float one to @latest or the other drifts so verify disagrees with CI. - devbox.json:5",
+          "files": [
+            "devbox.json"
+          ]
+        },
+        {
+          "text": "The turbo test task is deliberately uncached and lists DATABASE_URL in env; removing either points tests at a stale or default database. - turbo.json:61",
+          "files": [
+            "turbo.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "scripts",
+      "title": "Repo scripts: doc-reference check, dev stack, screenshots, oxlint plugin",
+      "files": [
+        "scripts/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm check:docs",
+          "why": "cited doc and AGENTS.md paths still exist"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "utils",
+      "title": "Bruno API request collection",
+      "files": [
+        "utils/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "vscode",
+      "title": "VS Code editor settings",
+      "files": [
+        ".vscode/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    },
+    {
+      "id": "zed",
+      "title": "Zed editor settings",
+      "files": [
+        ".zed/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm test",
+          "why": "the test suite"
+        },
+        {
+          "run": "pnpm run lint",
+          "why": "lint rules"
+        }
+      ],
+      "risks": []
+    }
+  ],
+  "rules": [
+    {
+      "id": "scope-first",
+      "rule": "requireScope(ctx, \"write\") is the first line of every write verb, before input parsing or the transaction.",
+      "why": "API-key and MCP read-only keys could mutate data or fire webhooks if the check is missed or moved.",
+      "files": [
+        "packages/services/src/**/*.ts"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/services test",
+          "why": "each entity's rejects-read-only-actor case"
+        }
+      ]
+    },
+    {
+      "id": "audit-in-tx",
+      "rule": "Every service mutation runs in withTransaction with emitAudit in the same transaction and filters reads and writes by ctx.workspace.id.",
+      "why": "A missed emitAudit leaves audit gaps and a missing workspace filter leaks data between tenants.",
+      "files": [
+        "packages/services/src/**/*.ts"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/services test",
+          "why": "audit rows asserted by expectAuditRow"
+        },
+        {
+          "run": "pnpm lint",
+          "why": "the requireScope and emitAudit lint rules"
+        }
+      ]
+    },
+    {
+      "id": "services-edge-safe",
+      "rule": "packages/services imports no node:* modules and no logtape.",
+      "why": "The status-page proxy imports page-access and Edge builds break.",
+      "files": [
+        "packages/services/src/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/services check",
+          "why": "types"
+        }
+      ]
+    },
+    {
+      "id": "uptime-weights",
+      "rule": "impactUptimeWeight stays 1, 0.5 and 0 for major, partial and degraded.",
+      "why": "Uptime shown on every status page changes; these were changed and reverted before.",
+      "files": [
+        "packages/db/src/schema/page_components/constants.ts"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/db test",
+          "why": "the pinned weights"
+        }
+      ]
+    },
+    {
+      "id": "v1-write-scope",
+      "rule": "requireWriteScope() stays mounted after authMiddleware on the V1 router.",
+      "why": "V1 writes use inline Drizzle, so service-level checks never run and read-only keys could write.",
+      "files": [
+        "apps/server/src/routes/v1/**",
+        "apps/server/src/libs/middlewares/require-scope.ts"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/server test",
+          "why": "require-scope middleware test"
+        }
+      ]
+    },
+    {
+      "id": "mcp-scoped-tool",
+      "rule": "MCP tools register through registerScopedTool with a declared scope.",
+      "why": "A tool registered the plain way is listed for read-only keys.",
+      "files": [
+        "apps/server/src/routes/mcp/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/server test",
+          "why": "MCP tool registration"
+        }
+      ]
+    },
+    {
+      "id": "page-access-gate",
+      "rule": "Any tRPC procedure or route returning status-page content calls assertPageAccess, and tRPC input is never logged.",
+      "why": "Password-protected pages leak to anonymous visitors, and input carries page passwords and subscriber tokens.",
+      "files": [
+        "packages/api/src/router/statusPage.ts",
+        "packages/api/src/lib/page-access.ts",
+        "apps/status-page/src/app/api/**"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/api test",
+          "why": "page-access and status page procedures"
+        }
+      ]
+    },
+    {
+      "id": "transition-one-batch",
+      "rule": "The checker status transition (status CAS, incident, outbox) stays a single db.batch in transition.ts.",
+      "why": "A crash between separate writes leaves the monitor status behind or loses or duplicates notifications.",
+      "files": [
+        "apps/workflows/src/checker/transition.ts",
+        "apps/workflows/src/checker/outbox.ts"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/workflows test",
+          "why": "transition and outbox tests"
+        }
+      ]
+    },
+    {
+      "id": "go-ts-assertions",
+      "rule": "Assertion evaluation changes in apps/checker/pkg/assertions and packages/assertions in the same PR.",
+      "why": "The probe and the dashboard silently disagree about whether a check passed.",
+      "files": [
+        "apps/checker/pkg/assertions/**",
+        "packages/assertions/src/**"
+      ],
+      "checks": [
+        {
+          "run": "cd apps/checker && go test -timeout 30s -race -count=1 ./...",
+          "why": "Go assertions"
+        },
+        {
+          "run": "pnpm --filter @openstatus/assertions test",
+          "why": "TS assertions"
+        }
+      ]
+    },
+    {
+      "id": "ui-blocks-registered",
+      "rule": "Files in packages/ui/src/components/blocks are listed in registry.json and import no app code.",
+      "why": "They work in the monorepo and break or 404 for everyone installing the public registry.",
+      "files": [
+        "packages/ui/src/components/blocks/**",
+        "packages/ui/registry.json"
+      ],
+      "checks": [
+        {
+          "run": "pnpm --filter @openstatus/ui registry:build",
+          "why": "the registry builds"
+        }
+      ]
+    }
+  ],
+  "ignore": [],
+  "hotspots": [
+    {
+      "file": "apps/server/src/routes/v1/maintenances/put.ts",
+      "symbol": "registerPutMaintenance",
+      "line": 55,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "v1-write-scope"
+      ],
+      "note": "Writes the database; called from 1 other file read"
+    },
+    {
+      "file": "apps/workflows/src/checker/outbox.ts",
+      "symbol": "loadDeps",
+      "line": 152,
+      "labels": [
+        "db-read"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Queries the database"
+    },
+    {
+      "file": "apps/workflows/src/checker/outbox.ts",
+      "symbol": "commitDead",
+      "line": 392,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "apps/workflows/src/checker/transition.ts",
+      "symbol": "journalStatement",
+      "line": 93,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "apps/workflows/src/checker/transition.ts",
+      "symbol": "createIncidentStatement",
+      "line": 125,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "apps/workflows/src/checker/transition.ts",
+      "symbol": "outboxStatement",
+      "line": 157,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "apps/workflows/src/checker/transition.ts",
+      "symbol": "applyStatusTransition",
+      "line": 215,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "apps/workflows/src/checker/transition.ts",
+      "symbol": "evaluateTransition",
+      "line": 244,
+      "labels": [
+        "db-read"
+      ],
+      "rules": [
+        "transition-one-batch"
+      ],
+      "note": "Queries the database"
+    },
+    {
+      "file": "packages/services/src/agent-tools/content.ts",
+      "symbol": "run",
+      "line": 67,
+      "labels": [
+        "network"
+      ],
+      "rules": [
+        "scope-first"
+      ],
+      "note": "Calls out over the network"
+    },
+    {
+      "file": "packages/services/src/agent-tools/content.ts",
+      "symbol": "run",
+      "line": 145,
+      "labels": [
+        "network"
+      ],
+      "rules": [
+        "scope-first"
+      ],
+      "note": "Calls out over the network"
+    },
+    {
+      "file": "packages/services/src/agent-tools/docs.ts",
+      "symbol": "run",
+      "line": 48,
+      "labels": [
+        "network"
+      ],
+      "rules": [
+        "scope-first"
+      ],
+      "note": "Calls out over the network"
+    },
+    {
+      "file": "packages/services/src/agent-tools/docs.ts",
+      "symbol": "run",
+      "line": 120,
+      "labels": [
+        "network"
+      ],
+      "rules": [
+        "scope-first"
+      ],
+      "note": "Calls out over the network"
+    },
+    {
+      "file": "packages/services/src/api-key/revoke.ts",
+      "symbol": "revokeApiKey",
+      "line": 22,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "audit-in-tx",
+        "scope-first"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "packages/services/src/audit/emit.ts",
+      "symbol": "emitAudit",
+      "line": 102,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "audit-in-tx",
+        "scope-first"
+      ],
+      "note": "Writes the database; called from 2 other files read"
+    },
+    {
+      "file": "packages/services/src/chat-session/internal.ts",
+      "symbol": "enforceSessionCap",
+      "line": 52,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "audit-in-tx",
+        "scope-first"
+      ],
+      "note": "Writes the database; called from 1 other file read"
+    },
+    {
+      "file": "packages/services/src/chat-session/remove.ts",
+      "symbol": "deleteChatSession",
+      "line": 17,
+      "labels": [
+        "db-write"
+      ],
+      "rules": [
+        "audit-in-tx",
+        "scope-first"
+      ],
+      "note": "Writes the database"
+    },
+    {
+      "file": "packages/services/src/external-service-component/list.ts",
+      "symbol": "fetchLatestByIds",
+      "line": 46,
+      "labels": [
+        "secrets"
+      ],
+      "rules": [
+        "audit-in-tx"
+      ],
+      "note": "Reads secrets or the environment"
+    }
+  ]
+}
